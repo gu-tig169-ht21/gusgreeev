@@ -1,37 +1,64 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_application_4/API.dart';
 import 'package:provider/provider.dart';
 
 void main() {
   runApp(ChangeNotifierProvider(
     create: (context) => (Todolist()),
     child: MaterialApp(
-      theme: ThemeData(primarySwatch: Colors.grey),
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(primarySwatch: Colors.brown),
       title: 'To Do',
       home: const FirstSide(),
     ),
   ));
 }
 
-class CBState {
+class TodoTask {
   String title;
   bool item;
-  CBState(this.title, this.item);
+  String id;
+
+  TodoTask(this.title, this.item, this.id);
+
+  void done(TodoTask title) {
+    item = !item;
+  }
 }
 
 class Todolist with ChangeNotifier {
-  final List<CBState> _list = [];
-  List<CBState> get list {
-    return _list;
-  }
+  List<TodoTask> _list = [];
 
-  void removeTODo(CBState title) {
-    _list.remove(title);
+  List<TodoTask> get list => _list;
+
+  String _filterSetting = 'all';
+
+  String get filterSetting => _filterSetting;
+
+  Future getlist() async {
+    List<TodoTask> list = (await Api.getList()) as List<TodoTask>;
+    _list = list;
     notifyListeners();
   }
 
-  void addTodo(CBState title) {
-    _list.add(title);
+  void isDone(TodoTask title, item, id) async {
+    _list = (await Api.updateList(title.title, item, id)) as List<TodoTask>;
+    notifyListeners();
+  }
+
+  void removeTODo(TodoTask title) async {
+    _list = (await Api.deleteList(title.id)) as List<TodoTask>;
+    notifyListeners();
+  }
+
+  void addTodo(TodoTask title, item) async {
+    _list = (await Api.postList(title.title, item)).cast<TodoTask>();
+    notifyListeners();
+  }
+
+  void setFilterBy(String filterSetting) {
+    _filterSetting = filterSetting;
     notifyListeners();
   }
 }
@@ -45,50 +72,83 @@ class FirstSide extends StatefulWidget {
 }
 
 class _FirstSideState extends State<FirstSide> {
-  var filterSetting = 'all';
+  late Future<List<TodoTask>> futureList;
+
+  @override
+  void initState() {
+    super.initState();
+    futureList = Api.getList() as Future<List<TodoTask>>;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-          title: const Text("TIG169 TO-DO"),
-          titleTextStyle: const TextStyle(
-            color: Color(0xffffffff),
-            fontSize: 20,
-          ),
-          actions: [
-            PopupMenuButton(
-                itemBuilder: (context) => [
-                      PopupMenuItem(
-                          child: const Text("All"), value: 1, onTap: () {}),
-                      const PopupMenuItem(
-                        child: Text("Done"),
-                        value: 2,
-                      ),
-                      const PopupMenuItem(
-                        child: Text("Undone"),
-                      ),
-                    ])
-          ]),
-      body: Consumer<Todolist>(
-          builder: (context, state, child) =>
-              _list(getFilteredList(state.list, filterSetting))),
-      floatingActionButton: FloatingActionButton(
-        child: const Icon(Icons.add),
-        backgroundColor: Colors.grey,
-        onPressed: () async {
-          var newTodo = await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => SecondSide(CBState('', false)),
+        appBar: AppBar(
+            title: const Text("TIG169 TO-DO"),
+            titleTextStyle: const TextStyle(
+              color: Color(0xffffffff),
+              fontSize: 20,
             ),
-          );
-          if (newTodo != null) {
-            Provider.of<Todolist>(context, listen: false).addTodo(newTodo);
-          }
-        },
-      ),
-    );
+            actions: [
+              PopupMenuButton(
+                  onSelected: (String value) {
+                    updateList(title) {}
+                    Provider.of<Todolist>(context, listen: false)
+                        .setFilterBy(value);
+                  },
+                  itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          child: Text("All"),
+                          value: 'all',
+                        ),
+                        const PopupMenuItem(
+                          child: Text("Done"),
+                          value: 'some',
+                        ),
+                        const PopupMenuItem(child: Text("Undone"), value: 'no'),
+                      ])
+            ]),
+        body: Consumer<Todolist>(
+            builder: (context, state, child) =>
+                _list(_getFilteredList(state.list, state.filterSetting))),
+        floatingActionButton: FloatingActionButton(
+          child: const Icon(Icons.add),
+          onPressed: () async {
+            var newTodo = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => SecondSide(TodoTask('', false, '')),
+              ),
+            );
+
+            /*FutureBuilder<List<TodoTask>>(
+              future: futureList,
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  return _list(_getFilteredList);
+                } else if (snapshot.hasError) {
+                  return Text('${snapshot.error}');
+                }
+                return const CircularProgressIndicator();
+              },
+            );*/
+            if (newTodo != null) {
+              Provider.of<Todolist>(context, listen: false)
+                  .addTodo(newTodo, false);
+            }
+          },
+        ));
+  }
+
+  List<TodoTask> _getFilteredList(allItems, filterSetting) {
+    if (filterSetting == 'all') return allItems;
+    if (filterSetting == 'some') {
+      return allItems.where((item) => item.done == true).toList();
+    }
+    if (filterSetting == 'no') {
+      return allItems.where((item) => item.done == false).toList();
+    }
+    return allItems;
   }
 
   Widget _list(title) {
@@ -97,44 +157,37 @@ class _FirstSideState extends State<FirstSide> {
         itemCount: title.length);
   }
 
-//Checkbox + listan + delete icon
-  Widget _doBox(CBState checkbox) {
+  Widget _doBox(TodoTask checkbox) {
     return CheckboxListTile(
-      //checkbox
-      controlAffinity: ListTileControlAffinity.leading,
-      value: checkbox.item,
-      activeColor: Colors.grey,
-      //Texten/listan
-      title: Text(
-        checkbox.title,
-        style: TextStyle(
-          fontSize: 20,
-          decoration: checkbox.item ? TextDecoration.lineThrough : null,
+        controlAffinity: ListTileControlAffinity.leading,
+        value: checkbox.item,
+        activeColor: Colors.brown,
+        title: Text(
+          checkbox.title,
+          style: TextStyle(
+            fontSize: 20,
+            decoration: checkbox.item ? TextDecoration.lineThrough : null,
+          ),
         ),
-      ),
-      onChanged: (value) => setState(() => checkbox.item = value!),
-      //Delete Icon
-      secondary: IconButton(
-          icon: const Icon(Icons.delete),
-          onPressed: () async {
-            var state = Provider.of<Todolist>(context, listen: false);
-            state.removeTODo(checkbox);
-          }),
-    );
+        onChanged: (value) => setState(() => checkbox.item = value!),
+        secondary: IconButton(
+            icon: const Icon(
+              Icons.clear,
+              color: Colors.brown,
+            ),
+            onPressed: () async {
+              setState(() {
+                deleteList() {}
+                var state = Provider.of<Todolist>(context, listen: false);
+                state.removeTODo(checkbox);
+              });
+            }));
   }
-}
-
-List getFilteredList(allItems, settings) {
-  if (settings == "All") return allItems;
-  if (settings == "Done") {
-    return [];
-  }
-  return allItems;
 }
 
 //Andra sidan
 class SecondSide extends StatefulWidget {
-  final CBState checkbox;
+  TodoTask checkbox;
 
   SecondSide(this.checkbox);
 
@@ -149,11 +202,12 @@ class _SecondSideState extends State<SecondSide> {
   late bool item;
   late TextEditingController _controller;
 
-  _SecondSideState(CBState thing) {
-    title = thing.title;
-    item = thing.item;
+  final _formKey = GlobalKey<FormState>();
 
-    _controller = TextEditingController(text: thing.title);
+  _SecondSideState(TodoTask checkbox) {
+    title = checkbox.title;
+    item = checkbox.item;
+    _controller = TextEditingController(text: checkbox.title);
 
     _controller.addListener(() {
       setState(() {
@@ -185,29 +239,38 @@ class _SecondSideState extends State<SecondSide> {
           fontSize: 20,
         ),
       ),
-      body: Center(
+      body: Form(
+        key: _formKey,
         child: Column(
           children: [
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             ),
-            TextField(
-              decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  labelText: 'What are you going to do?'),
-              controller: _controller,
-            ),
+            TextFormField(
+                decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: 'What are you going to do?'),
+                controller: _controller,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Write something to do...';
+                  } else {}
+                }),
             Padding(
               padding: const EdgeInsets.all(15.0),
               child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                    primary: Colors.grey,
-                    textStyle: const TextStyle(fontSize: 15)),
-                child: const Text('ADD'),
-                onPressed: () {
-                  Navigator.pop(context, CBState(_controller.text, false));
-                },
-              ),
+                  style: ElevatedButton.styleFrom(
+                      primary: Colors.brown,
+                      textStyle: const TextStyle(fontSize: 15)),
+                  child: const Text('ADD'),
+                  onPressed: () async {
+                    Api.postList(_controller.text, false);
+                    Api.getList();
+                    if (_formKey.currentState!.validate()) {
+                      Navigator.pop(
+                          context, TodoTask(_controller.text, false, ''));
+                    }
+                  }),
             ),
           ],
         ),
