@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="se.gu.my_first_app">
+    package="com.example.flutterletsgo">
    <application
-        android:label="my_first_app"
+        android:label="flutterletsgo"
         android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"

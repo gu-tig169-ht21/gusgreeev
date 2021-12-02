@@ -1,4 +1,4 @@
-package se.gu.my_first_app
+package com.example.flutterletsgo
 
 import io.flutter.embedding.android.FlutterActivity
 
