@@ -19,14 +19,9 @@ void main() async {
 }
 
 //Första sidan
-class FirstPage extends StatefulWidget {
+class FirstPage extends StatelessWidget {
   const FirstPage({Key? key}) : super(key: key);
 
-  @override
-  FirstPageState createState() => FirstPageState();
-}
-
-class FirstPageState extends State<FirstPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -56,7 +51,7 @@ class FirstPageState extends State<FirstPage> {
             ]),
         body: Consumer<TodolistProvider>(
             builder: (context, state, child) =>
-                _list(_getFilteredList(state.list, state.filterSetting))),
+                _list(getFilteredList(state.list, state.filterSetting))),
         floatingActionButton: FloatingActionButton(
           child: const Icon(Icons.add),
           onPressed: () async {
@@ -74,15 +69,10 @@ class FirstPageState extends State<FirstPage> {
         ));
   }
 
-//To-Do listan
-  Widget _list(title) {
-    return ListView.builder(
-        itemBuilder: (context, index) => _doBox(title[index]),
-        itemCount: title.length);
-  }
-
-//Gör checkboxarna & textlistan & Icons
-  Widget _doBox(TodoTask checkbox) {
+  Widget _doBox(
+    TodoTask checkbox,
+    BuildContext context,
+  ) {
     return CheckboxListTile(
         secondary: IconButton(
             icon: const Icon(
@@ -90,11 +80,10 @@ class FirstPageState extends State<FirstPage> {
               color: Colors.brown,
             ),
             onPressed: () async {
-              setState(() {
-                var state =
-                    Provider.of<TodolistProvider>(context, listen: false);
-                state.removeToDo(checkbox);
-              });
+              {
+                Provider.of<TodolistProvider>(context, listen: false)
+                    .removeToDo(checkbox);
+              }
             }),
         controlAffinity: ListTileControlAffinity.leading,
         value: checkbox.item,
@@ -111,16 +100,10 @@ class FirstPageState extends State<FirstPage> {
               .upDateTodo(checkbox);
         });
   }
-}
 
-//Filtreringsfunktionen
-List<TodoTask> _getFilteredList(allItems, filterSetting) {
-  if (filterSetting == 'all') return allItems;
-  if (filterSetting == 'some') {
-    return allItems.where((item) => item.item == true).toList();
+  Widget _list(todo) {
+    return ListView.builder(
+        itemBuilder: (context, index) => _doBox(todo[index], context),
+        itemCount: todo.length);
   }
-  if (filterSetting == 'no') {
-    return allItems.where((item) => item.item == false).toList();
-  }
-  return allItems;
 }

@@ -27,6 +27,7 @@ class SecondPageState extends State<SecondPage> {
     item = checkbox.item;
 
     _controller = TextEditingController(text: checkbox.title);
+
     _controller.addListener(() {
       setState(() {
         title = _controller.text;

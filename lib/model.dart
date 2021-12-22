@@ -25,7 +25,7 @@ class TodoTask {
   }
 }
 
-List<TodoTask> _getFilteredList(allItems, filterSetting) {
+List<TodoTask> getFilteredList(allItems, filterSetting) {
   if (filterSetting == 'all') return allItems;
   if (filterSetting == 'some') {
     return allItems.where((item) => item.item == true).toList();
